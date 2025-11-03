@@ -3,7 +3,7 @@ import { extension_settings, getContext, loadExtensionSettings } from "../../../
 import { saveSettingsDebounced } from "../../../../script.js";
 
 // Extension name MUST match folder name
-const extensionName = "realworld-weather"; // ⚠️ REPLACE WITH YOUR ACTUAL FOLDER NAME
+const extensionName = "sillytavern-real-world-weather"; // ⚠️ Changed to match your folder
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // Extension initialization
