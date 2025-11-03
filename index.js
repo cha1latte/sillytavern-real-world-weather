@@ -63,35 +63,86 @@ function updateAuthorNote() {
     
     const weatherText = `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
     
+    // Try multiple possible selectors for Author's Note
+    const possibleSelectors = [
+        "#extension_floating_prompt",
+        "#author_note_textarea",
+        "#floatingPrompt",
+        "textarea[name='extension_floating_prompt']"
+    ];
+    
+    let authorNoteField = null;
+    for (const selector of possibleSelectors) {
+        const field = $(selector);
+        if (field.length > 0) {
+            authorNoteField = field;
+            console.log(`[${extensionName}] Found Author's Note field:`, selector);
+            break;
+        }
+    }
+    
+    if (!authorNoteField || authorNoteField.length === 0) {
+        console.error(`[${extensionName}] Could not find Author's Note field. Available textareas:`);
+        $("textarea").each(function() {
+            console.log(`[${extensionName}] Textarea found:`, {
+                id: $(this).attr("id"),
+                name: $(this).attr("name"),
+                placeholder: $(this).attr("placeholder")
+            });
+        });
+        toastr.warning("Could not find Author's Note field. Check console for details.", "Real-World Weather");
+        return;
+    }
+    
     // Get current Author's Note
-    const authorNote = $("#extension_floating_prompt").val() || "";
+    const authorNote = authorNoteField.val() || "";
     
     // Check if weather is already in the note
     if (authorNote.includes("[Current Weather in")) {
         // Replace existing weather
         const newNote = authorNote.replace(/\[Current Weather in[^\]]+\]/g, weatherText);
-        $("#extension_floating_prompt").val(newNote);
+        authorNoteField.val(newNote);
     } else {
         // Add weather to the note
         const newNote = authorNote ? `${authorNote}\n\n${weatherText}` : weatherText;
-        $("#extension_floating_prompt").val(newNote);
+        authorNoteField.val(newNote);
     }
     
     // Trigger change event to save
-    $("#extension_floating_prompt").trigger("input");
+    authorNoteField.trigger("input");
     
     console.log(`[${extensionName}] Weather added to Author's Note:`, weatherText);
 }
 
 // Clear weather from Author's Note
 function clearAuthorNote() {
-    const authorNote = $("#extension_floating_prompt").val() || "";
+    const possibleSelectors = [
+        "#extension_floating_prompt",
+        "#author_note_textarea",
+        "#floatingPrompt",
+        "textarea[name='extension_floating_prompt']"
+    ];
+    
+    let authorNoteField = null;
+    for (const selector of possibleSelectors) {
+        const field = $(selector);
+        if (field.length > 0) {
+            authorNoteField = field;
+            break;
+        }
+    }
+    
+    if (!authorNoteField || authorNoteField.length === 0) {
+        return;
+    }
+    
+    const authorNote = authorNoteField.val() || "";
     
     if (authorNote.includes("[Current Weather in")) {
         // Remove weather line(s)
         const newNote = authorNote.replace(/\[Current Weather in[^\]]+\]\n*/g, "").trim();
-        $("#extension_floating_prompt").val(newNote);
-        $("#extension_floating_prompt").trigger("input");
+        authorNoteField.val(newNote);
+        authorNoteField.trigger("input");
         console.log(`[${extensionName}] Weather removed from Author's Note`);
     }
 }
