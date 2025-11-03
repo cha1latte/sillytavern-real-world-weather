@@ -5,9 +5,14 @@
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-            <p>✅ Extension loaded successfully!</p>
-            <p>If you can see this, the basic structure is working.</p>
-            <p><small>This extension will fetch real-world weather data for your roleplays.</small></p>
+            <div>
+                <label for="weather_location">
+                    <b>Location</b>
+                </label>
+                <input id="weather_location" class="text_pole" type="text" placeholder="e.g., New York, NY or London, UK" />
+                <small class="notes">Enter a city name or coordinates (e.g., 40.7128,-74.0060)</small>
+            </div>
+            <p><small>Type a location and refresh the page - it should remember your input.</small></p>
         </div>
     </div>
 </div>
