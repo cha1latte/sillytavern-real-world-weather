@@ -1,6 +1,7 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
+import { setExtensionPrompt, MODULE_POSITION } from "../../../extensions.js";
 
 // Extension name MUST match folder name
 const extensionName = "sillytavern-real-world-weather";
@@ -9,7 +10,8 @@ const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 // Default settings
 const defaultSettings = {
     location: "",
-    lastWeather: null
+    lastWeather: null,
+    autoInject: false
 };
 
 // Load saved settings
@@ -19,11 +21,15 @@ async function loadSettings() {
         Object.assign(extension_settings[extensionName], defaultSettings);
     }
     $("#weather_location").val(extension_settings[extensionName].location);
+    $("#weather_auto_inject").prop("checked", extension_settings[extensionName].autoInject);
     
     // Display last weather if available
     if (extension_settings[extensionName].lastWeather) {
         displayWeather(extension_settings[extensionName].lastWeather);
     }
+    
+    // Update context if auto-inject is enabled
+    updateWeatherContext();
 }
 
 // Handle location input change
@@ -31,6 +37,37 @@ function onLocationChange(event) {
     const value = String($(event.target).val());
     extension_settings[extensionName].location = value;
     saveSettingsDebounced();
+}
+
+// Handle auto-inject checkbox change
+function onAutoInjectChange(event) {
+    const value = Boolean($(event.target).prop("checked"));
+    extension_settings[extensionName].autoInject = value;
+    saveSettingsDebounced();
+    updateWeatherContext();
+    
+    if (value) {
+        toastr.info("Weather will now be automatically included in chat context", "Real-World Weather");
+    } else {
+        toastr.info("Auto-inject disabled", "Real-World Weather");
+    }
+}
+
+// Update weather in extension context
+function updateWeatherContext() {
+    const weatherData = extension_settings[extensionName].lastWeather;
+    const autoInject = extension_settings[extensionName].autoInject;
+    
+    if (autoInject && weatherData) {
+        const weatherPrompt = `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph. Last updated: ${weatherData.timestamp}]`;
+        
+        setExtensionPrompt(extensionName, weatherPrompt, MODULE_POSITION.IN_PROMPT, 0);
+        console.log(`[${extensionName}] Weather context updated in prompt`);
+    } else {
+        // Clear the prompt if disabled
+        setExtensionPrompt(extensionName, "", MODULE_POSITION.IN_PROMPT, 0);
+        console.log(`[${extensionName}] Weather context cleared from prompt`);
+    }
 }
 
 // Display weather in UI
@@ -103,6 +140,9 @@ async function fetchWeather() {
         // Display in UI
         displayWeather(displayData);
         
+        // Update context if auto-inject is enabled
+        updateWeatherContext();
+        
         // Also show toast
         toastr.success(`Weather updated for ${name}, ${country}`, "Real-World Weather");
         console.log(`[${extensionName}] Weather data:`, weatherData.current);
@@ -155,6 +195,7 @@ jQuery(async () => {
         $("#weather_location").on("input", onLocationChange);
         $("#weather_fetch_button").on("click", fetchWeather);
         $("#weather_insert_button").on("click", insertWeatherIntoChat);
+        $("#weather_auto_inject").on("input", onAutoInjectChange);
        
         // Load saved settings
         await loadSettings();
