@@ -1,7 +1,6 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-import { substituteParams } from "../../../script.js";
 
 // Extension name MUST match folder name
 const extensionName = "sillytavern-real-world-weather";
