@@ -1,6 +1,7 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
+import { substituteParams } from "../../../script.js";
 
 // Extension name MUST match folder name
 const extensionName = "sillytavern-real-world-weather";
@@ -113,6 +114,33 @@ async function fetchWeather() {
     }
 }
 
+// Insert weather into chat
+function insertWeatherIntoChat() {
+    const weatherData = extension_settings[extensionName].lastWeather;
+    
+    if (!weatherData) {
+        toastr.warning("Please fetch weather data first", "Real-World Weather");
+        return;
+    }
+    
+    // Create weather context message
+    const weatherContext = `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
+    
+    // Get the chat textarea
+    const textarea = $("#send_textarea");
+    const currentText = textarea.val();
+    
+    // Insert weather at cursor or append
+    if (currentText) {
+        textarea.val(currentText + "\n" + weatherContext);
+    } else {
+        textarea.val(weatherContext);
+    }
+    
+    toastr.success("Weather context added to message", "Real-World Weather");
+    console.log(`[${extensionName}] Weather inserted:`, weatherContext);
+}
+
 // Extension initialization
 jQuery(async () => {
     console.log(`[${extensionName}] Loading...`);
@@ -127,6 +155,7 @@ jQuery(async () => {
         // Bind events
         $("#weather_location").on("input", onLocationChange);
         $("#weather_fetch_button").on("click", fetchWeather);
+        $("#weather_insert_button").on("click", insertWeatherIntoChat);
        
         // Load saved settings
         await loadSettings();
