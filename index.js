@@ -231,9 +231,15 @@ async function fetchWeather() {
             console.log(`[${extensionName}] Using coordinates:`, latitude, longitude);
         } else {
             // It's a location name - geocode it
-            // Try with full string first (supports "City, State" or "City, Country")
-            const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=10&language=en&format=json`;
+            // Parse the input to separate city from region/country
+            const parts = location.split(',').map(s => s.trim());
+            const cityName = parts[0]; // Always use the first part as city name
+            const regionName = parts.length >= 2 ? parts[1].toLowerCase() : null;
+            
+            // Search for just the city name (API doesn't like "City, State" format)
+            const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=10&language=en&format=json`;
             console.log(`[${extensionName}] Geocoding URL:`, geoUrl);
+            console.log(`[${extensionName}] Searching for city: "${cityName}"`, regionName ? `with region: "${regionName}"` : '');
             
             const geoResponse = await fetch(geoUrl);
             const geoData = await geoResponse.json();
@@ -241,7 +247,7 @@ async function fetchWeather() {
             console.log(`[${extensionName}] Geocoding results:`, geoData);
             
             if (!geoData.results || geoData.results.length === 0) {
-                toastr.error(`Location "${location}" not found. Try:\n- "City, State" (e.g., "Decatur, Georgia")\n- "City, Country" (e.g., "Paris, France")\n- Coordinates (e.g., "33.7748,-84.2963")`, "Real-World Weather", { timeOut: 8000 });
+                toastr.error(`Location "${cityName}" not found. Try:\n- "City, State" (e.g., "Decatur, Georgia")\n- "City, Country" (e.g., "Paris, France")\n- Coordinates (e.g., "33.7748,-84.2963")`, "Real-World Weather", { timeOut: 8000 });
                 return;
             }
             
@@ -257,38 +263,38 @@ async function fetchWeather() {
                 });
             });
             
-            // If multiple results, try to find best match
+            // Select the best match
             let selectedResult = geoData.results[0]; // Default to first result
             
-            // If user entered "City, Region" format, try to match
-            const parts = location.split(',').map(s => s.trim());
-            if (parts.length >= 2) {
-                const cityName = parts[0].toLowerCase();
-                const regionName = parts[1].toLowerCase();
+            // If user specified a region, try to find a match
+            if (regionName) {
+                console.log(`[${extensionName}] Filtering by region: "${regionName}"`);
                 
-                console.log(`[${extensionName}] Searching for: city="${cityName}", region="${regionName}"`);
-                
-                // Try to find exact match for city + region/country
                 const exactMatch = geoData.results.find(result => {
-                    const matchCity = result.name.toLowerCase() === cityName;
-                    const matchRegion = (result.admin1 && result.admin1.toLowerCase().includes(regionName)) ||
-                                       (result.country && result.country.toLowerCase().includes(regionName));
+                    // Check if admin1 (state/province) or country matches
+                    const admin1Lower = result.admin1 ? result.admin1.toLowerCase() : '';
+                    const countryLower = result.country ? result.country.toLowerCase() : '';
+                    
+                    // Match full name or common abbreviations
+                    const matchAdmin1 = admin1Lower.includes(regionName) || regionName.includes(admin1Lower);
+                    const matchCountry = countryLower.includes(regionName) || regionName.includes(countryLower);
                     
                     console.log(`[${extensionName}] Checking ${result.name}:`, {
-                        matchCity,
-                        matchRegion,
                         admin1: result.admin1,
-                        country: result.country
+                        country: result.country,
+                        matchAdmin1,
+                        matchCountry
                     });
                     
-                    return matchCity && matchRegion;
+                    return matchAdmin1 || matchCountry;
                 });
                 
                 if (exactMatch) {
                     selectedResult = exactMatch;
-                    console.log(`[${extensionName}] ✅ Found exact match:`, selectedResult.name, selectedResult.admin1 || selectedResult.country);
+                    console.log(`[${extensionName}] ✅ Found match for region:`, selectedResult.name, selectedResult.admin1, selectedResult.country);
                 } else {
-                    console.log(`[${extensionName}] ⚠️ No exact match found, using first result`);
+                    console.log(`[${extensionName}] ⚠️ No match for region "${regionName}", using first result`);
+                    toastr.warning(`Couldn't find ${cityName} in ${regionName}. Using ${geoData.results[0].name}, ${geoData.results[0].admin1 || geoData.results[0].country}`, "Real-World Weather", { timeOut: 5000 });
                 }
             }
             
