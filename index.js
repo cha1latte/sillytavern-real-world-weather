@@ -6,22 +6,24 @@ import { saveSettingsDebounced } from "../../../../script.js";
 const extensionName = "sillytavern-real-world-weather";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
-console.log(`[${extensionName}] Script loaded, starting initialization...`);
-
 // Default settings
 const defaultSettings = {
-    location: ""
+    location: "",
+    lastWeather: null
 };
 
 // Load saved settings
 async function loadSettings() {
-    console.log(`[${extensionName}] Loading settings...`);
     extension_settings[extensionName] = extension_settings[extensionName] || {};
     if (Object.keys(extension_settings[extensionName]).length === 0) {
         Object.assign(extension_settings[extensionName], defaultSettings);
     }
     $("#weather_location").val(extension_settings[extensionName].location);
-    console.log(`[${extensionName}] Settings loaded:`, extension_settings[extensionName]);
+    
+    // Display last weather if available
+    if (extension_settings[extensionName].lastWeather) {
+        displayWeather(extension_settings[extensionName].lastWeather);
+    }
 }
 
 // Handle location input change
@@ -29,12 +31,25 @@ function onLocationChange(event) {
     const value = String($(event.target).val());
     extension_settings[extensionName].location = value;
     saveSettingsDebounced();
-    console.log(`[${extensionName}] Location saved:`, value);
+}
+
+// Display weather in UI
+function displayWeather(weatherData) {
+    const html = `
+        <div style="background: var(--SmartThemeBlurTintColor); padding: 10px; border-radius: 5px; margin-top: 10px;">
+            <div style="font-weight: bold; margin-bottom: 5px;">📍 ${weatherData.locationName}</div>
+            <div>🌡️ Temperature: ${weatherData.temp}°F</div>
+            <div>💧 Humidity: ${weatherData.humidity}%</div>
+            <div>💨 Wind Speed: ${weatherData.windSpeed} mph</div>
+            <div style="font-size: 0.8em; margin-top: 5px; opacity: 0.7;">Last updated: ${weatherData.timestamp}</div>
+        </div>
+    `;
+    $("#weather_display").html(html);
 }
 
 // Fetch weather data
 async function fetchWeather() {
-    const location = extension_settings[extensionName].location;
+    const location = extension_settings[extensionName].location.trim();
     
     if (!location) {
         toastr.warning("Please enter a location first", "Real-World Weather");
@@ -45,13 +60,16 @@ async function fetchWeather() {
     toastr.info("Fetching weather data...", "Real-World Weather");
     
     try {
+        // Clean up location string (remove state/country codes if present)
+        const cleanLocation = location.split(',')[0].trim();
+        
         // Step 1: Geocode the location to get coordinates
-        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`;
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanLocation)}&count=1&language=en&format=json`;
         const geoResponse = await fetch(geoUrl);
         const geoData = await geoResponse.json();
         
         if (!geoData.results || geoData.results.length === 0) {
-            toastr.error("Location not found. Try a different city name.", "Real-World Weather");
+            toastr.error(`Location "${cleanLocation}" not found. Try just the city name (e.g., "New York" instead of "New York, NY")`, "Real-World Weather");
             return;
         }
         
@@ -63,43 +81,52 @@ async function fetchWeather() {
         const weatherResponse = await fetch(weatherUrl);
         const weatherData = await weatherResponse.json();
         
-        // Display results
+        // Prepare display data
         const temp = weatherData.current.temperature_2m;
         const humidity = weatherData.current.relative_humidity_2m;
         const windSpeed = weatherData.current.wind_speed_10m;
+        const timestamp = new Date().toLocaleString();
         
-        const message = `📍 ${name}, ${country}\n🌡️ ${temp}°F\n💧 ${humidity}% humidity\n💨 ${windSpeed} mph wind`;
+        const displayData = {
+            locationName: `${name}, ${country}`,
+            temp: temp,
+            humidity: humidity,
+            windSpeed: windSpeed,
+            timestamp: timestamp,
+            raw: weatherData.current
+        };
         
-        toastr.success(message, "Current Weather", { timeOut: 10000 });
+        // Save to settings
+        extension_settings[extensionName].lastWeather = displayData;
+        saveSettingsDebounced();
+        
+        // Display in UI
+        displayWeather(displayData);
+        
+        // Also show toast
+        toastr.success(`Weather updated for ${name}, ${country}`, "Real-World Weather");
         console.log(`[${extensionName}] Weather data:`, weatherData.current);
         
     } catch (error) {
         console.error(`[${extensionName}] Error fetching weather:`, error);
-        toastr.error("Failed to fetch weather data", "Real-World Weather");
+        toastr.error("Failed to fetch weather data. Check console for details.", "Real-World Weather");
     }
 }
 
 // Extension initialization
 jQuery(async () => {
-    console.log(`[${extensionName}] jQuery ready, starting async init...`);
+    console.log(`[${extensionName}] Loading...`);
    
     try {
-        console.log(`[${extensionName}] Attempting to load HTML from:`, `${extensionFolderPath}/example.html`);
-        
         // Load HTML from file
         const settingsHtml = await $.get(`${extensionFolderPath}/example.html`);
-        console.log(`[${extensionName}] HTML loaded, length:`, settingsHtml.length);
        
         // Append to settings panel (right column for UI extensions)
         $("#extensions_settings2").append(settingsHtml);
-        console.log(`[${extensionName}] HTML appended to #extensions_settings2`);
        
         // Bind events
         $("#weather_location").on("input", onLocationChange);
-        console.log(`[${extensionName}] Location input event bound`);
-        
         $("#weather_fetch_button").on("click", fetchWeather);
-        console.log(`[${extensionName}] Fetch button event bound`);
        
         // Load saved settings
         await loadSettings();
@@ -107,6 +134,5 @@ jQuery(async () => {
         console.log(`[${extensionName}] ✅ Loaded successfully`);
     } catch (error) {
         console.error(`[${extensionName}] ❌ Failed to load:`, error);
-        console.error(`[${extensionName}] Error stack:`, error.stack);
     }
 });
