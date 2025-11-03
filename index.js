@@ -108,14 +108,14 @@ function updateDefaultAuthorNote() {
     const settings = context.settings || {};
     const currentNote = settings.note_default || "";
     
-    const weatherText = `[Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
+    const weatherText = `Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph`;
     
     console.log(`[${extensionName}] Current Default Author's Note:`, currentNote);
     
     // Check if weather is already in the note
-    if (currentNote.includes("[Current Weather in")) {
+    if (currentNote.includes("Current Weather in")) {
         // Replace existing weather
-        const newNote = currentNote.replace(/\[Current Weather in[^\]]+\]/g, weatherText);
+        const newNote = currentNote.replace(/Current Weather in[^\n]+/g, weatherText);
         settings.note_default = newNote;
     } else {
         // Add weather to the note
@@ -142,9 +142,9 @@ function clearDefaultAuthorNote() {
     const settings = context.settings || {};
     const currentNote = settings.note_default || "";
     
-    if (currentNote.includes("[Current Weather in")) {
+    if (currentNote.includes("Current Weather in")) {
         // Remove weather line(s)
-        const newNote = currentNote.replace(/\[Current Weather in[^\]]+\]\n*/g, "").trim();
+        const newNote = currentNote.replace(/Current Weather in[^\n]+\n*/g, "").trim();
         settings.note_default = newNote;
         
         // Update the textarea if it's visible
@@ -294,7 +294,7 @@ function insertWeatherIntoChat() {
     }
     
     // Create weather context message
-    const weatherContext = `[Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
+    const weatherContext = `Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph`;
     
     // Get the chat textarea
     const textarea = $("#send_textarea");
