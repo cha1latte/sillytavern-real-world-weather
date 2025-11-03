@@ -233,13 +233,29 @@ async function fetchWeather() {
             // It's a location name - geocode it
             // Try with full string first (supports "City, State" or "City, Country")
             const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=10&language=en&format=json`;
+            console.log(`[${extensionName}] Geocoding URL:`, geoUrl);
+            
             const geoResponse = await fetch(geoUrl);
             const geoData = await geoResponse.json();
+            
+            console.log(`[${extensionName}] Geocoding results:`, geoData);
             
             if (!geoData.results || geoData.results.length === 0) {
                 toastr.error(`Location "${location}" not found. Try:\n- "City, State" (e.g., "Decatur, Georgia")\n- "City, Country" (e.g., "Paris, France")\n- Coordinates (e.g., "33.7748,-84.2963")`, "Real-World Weather", { timeOut: 8000 });
                 return;
             }
+            
+            // Log all results for debugging
+            console.log(`[${extensionName}] Found ${geoData.results.length} results:`);
+            geoData.results.forEach((result, index) => {
+                console.log(`[${extensionName}] Result ${index}:`, {
+                    name: result.name,
+                    admin1: result.admin1,
+                    country: result.country,
+                    latitude: result.latitude,
+                    longitude: result.longitude
+                });
+            });
             
             // If multiple results, try to find best match
             let selectedResult = geoData.results[0]; // Default to first result
@@ -250,17 +266,29 @@ async function fetchWeather() {
                 const cityName = parts[0].toLowerCase();
                 const regionName = parts[1].toLowerCase();
                 
+                console.log(`[${extensionName}] Searching for: city="${cityName}", region="${regionName}"`);
+                
                 // Try to find exact match for city + region/country
                 const exactMatch = geoData.results.find(result => {
                     const matchCity = result.name.toLowerCase() === cityName;
                     const matchRegion = (result.admin1 && result.admin1.toLowerCase().includes(regionName)) ||
                                        (result.country && result.country.toLowerCase().includes(regionName));
+                    
+                    console.log(`[${extensionName}] Checking ${result.name}:`, {
+                        matchCity,
+                        matchRegion,
+                        admin1: result.admin1,
+                        country: result.country
+                    });
+                    
                     return matchCity && matchRegion;
                 });
                 
                 if (exactMatch) {
                     selectedResult = exactMatch;
-                    console.log(`[${extensionName}] Found exact match:`, selectedResult.name, selectedResult.admin1 || selectedResult.country);
+                    console.log(`[${extensionName}] ✅ Found exact match:`, selectedResult.name, selectedResult.admin1 || selectedResult.country);
+                } else {
+                    console.log(`[${extensionName}] ⚠️ No exact match found, using first result`);
                 }
             }
             
@@ -271,8 +299,8 @@ async function fetchWeather() {
             const country = selectedResult.country;
             locationName = `${name}, ${region}${country}`;
             
-            console.log(`[${extensionName}] Found coordinates:`, latitude, longitude);
-            console.log(`[${extensionName}] Full location:`, locationName);
+            console.log(`[${extensionName}] Selected location:`, locationName);
+            console.log(`[${extensionName}] Coordinates:`, latitude, longitude);
         }
         
         // Step 2: Fetch weather data
