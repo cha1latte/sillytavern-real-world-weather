@@ -49,9 +49,69 @@ const WEATHER_DESCRIPTIONS = {
     99: "Thunderstorm with heavy hail"
 };
 
+// US State abbreviations mapping
+const US_STATE_ABBREV = {
+    'al': 'alabama', 'alabama': 'alabama',
+    'ak': 'alaska', 'alaska': 'alaska',
+    'az': 'arizona', 'arizona': 'arizona',
+    'ar': 'arkansas', 'arkansas': 'arkansas',
+    'ca': 'california', 'california': 'california',
+    'co': 'colorado', 'colorado': 'colorado',
+    'ct': 'connecticut', 'connecticut': 'connecticut',
+    'de': 'delaware', 'delaware': 'delaware',
+    'fl': 'florida', 'florida': 'florida',
+    'ga': 'georgia', 'georgia': 'georgia',
+    'hi': 'hawaii', 'hawaii': 'hawaii',
+    'id': 'idaho', 'idaho': 'idaho',
+    'il': 'illinois', 'illinois': 'illinois',
+    'in': 'indiana', 'indiana': 'indiana',
+    'ia': 'iowa', 'iowa': 'iowa',
+    'ks': 'kansas', 'kansas': 'kansas',
+    'ky': 'kentucky', 'kentucky': 'kentucky',
+    'la': 'louisiana', 'louisiana': 'louisiana',
+    'me': 'maine', 'maine': 'maine',
+    'md': 'maryland', 'maryland': 'maryland',
+    'ma': 'massachusetts', 'massachusetts': 'massachusetts',
+    'mi': 'michigan', 'michigan': 'michigan',
+    'mn': 'minnesota', 'minnesota': 'minnesota',
+    'ms': 'mississippi', 'mississippi': 'mississippi',
+    'mo': 'missouri', 'missouri': 'missouri',
+    'mt': 'montana', 'montana': 'montana',
+    'ne': 'nebraska', 'nebraska': 'nebraska',
+    'nv': 'nevada', 'nevada': 'nevada',
+    'nh': 'new hampshire', 'new hampshire': 'new hampshire',
+    'nj': 'new jersey', 'new jersey': 'new jersey',
+    'nm': 'new mexico', 'new mexico': 'new mexico',
+    'ny': 'new york', 'new york': 'new york',
+    'nc': 'north carolina', 'north carolina': 'north carolina',
+    'nd': 'north dakota', 'north dakota': 'north dakota',
+    'oh': 'ohio', 'ohio': 'ohio',
+    'ok': 'oklahoma', 'oklahoma': 'oklahoma',
+    'or': 'oregon', 'oregon': 'oregon',
+    'pa': 'pennsylvania', 'pennsylvania': 'pennsylvania',
+    'ri': 'rhode island', 'rhode island': 'rhode island',
+    'sc': 'south carolina', 'south carolina': 'south carolina',
+    'sd': 'south dakota', 'south dakota': 'south dakota',
+    'tn': 'tennessee', 'tennessee': 'tennessee',
+    'tx': 'texas', 'texas': 'texas',
+    'ut': 'utah', 'utah': 'utah',
+    'vt': 'vermont', 'vermont': 'vermont',
+    'va': 'virginia', 'virginia': 'virginia',
+    'wa': 'washington', 'washington': 'washington',
+    'wv': 'west virginia', 'west virginia': 'west virginia',
+    'wi': 'wisconsin', 'wisconsin': 'wisconsin',
+    'wy': 'wyoming', 'wyoming': 'wyoming'
+};
+
 // Get weather description from code
 function getWeatherDescription(code) {
     return WEATHER_DESCRIPTIONS[code] || "Unknown conditions";
+}
+
+// Normalize state/region name (convert abbreviations to full names)
+function normalizeRegionName(region) {
+    const lower = region.toLowerCase().trim();
+    return US_STATE_ABBREV[lower] || lower;
 }
 
 // Load saved settings
@@ -279,17 +339,30 @@ async function fetchWeather() {
             if (regionName) {
                 console.log(`[${extensionName}] Filtering by region: "${regionName}"`);
                 
+                // Normalize the search term (convert abbreviations like "GA" to "georgia")
+                const normalizedSearch = normalizeRegionName(regionName);
+                console.log(`[${extensionName}] Normalized search: "${normalizedSearch}"`);
+                
                 const exactMatch = geoData.results.find(result => {
                     // Check if admin1 (state/province) or country matches
                     const admin1Lower = result.admin1 ? result.admin1.toLowerCase() : '';
                     const countryLower = result.country ? result.country.toLowerCase() : '';
                     
-                    // Match full name or common abbreviations
-                    const matchAdmin1 = admin1Lower.includes(regionName) || regionName.includes(admin1Lower);
-                    const matchCountry = countryLower.includes(regionName) || regionName.includes(countryLower);
+                    // Normalize the result's state name too
+                    const normalizedAdmin1 = normalizeRegionName(admin1Lower);
+                    const normalizedCountry = normalizeRegionName(countryLower);
+                    
+                    // Match using normalized names
+                    const matchAdmin1 = normalizedAdmin1 === normalizedSearch || 
+                                       admin1Lower.includes(normalizedSearch) || 
+                                       normalizedSearch.includes(normalizedAdmin1);
+                    const matchCountry = normalizedCountry === normalizedSearch || 
+                                        countryLower.includes(normalizedSearch) || 
+                                        normalizedSearch.includes(normalizedCountry);
                     
                     console.log(`[${extensionName}] Checking ${result.name}:`, {
                         admin1: result.admin1,
+                        normalizedAdmin1,
                         country: result.country,
                         matchAdmin1,
                         matchCountry
