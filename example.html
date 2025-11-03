@@ -18,9 +18,15 @@
                 <input id="weather_insert_button" class="menu_button" type="submit" value="Insert into Chat" />
             </div>
             
-            <div id="weather_display"></div>
+            <div style="margin-top: 10px;">
+                <label class="checkbox_label" for="weather_auto_inject">
+                    <input id="weather_auto_inject" type="checkbox" />
+                    <span>Auto-inject weather into chat context</span>
+                </label>
+                <small class="notes">When enabled, weather will be automatically included in every message</small>
+            </div>
             
-            <p><small>Click "Insert into Chat" to add weather context to your next message.</small></p>
+            <div id="weather_display"></div>
         </div>
     </div>
 </div>
