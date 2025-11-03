@@ -16,7 +16,7 @@ Fetch real-world weather data and automatically inject it into your chats for im
 
 1. Open SillyTavern
 2. Go to **Extensions → Install Extension**
-3. Paste GitHub URL: `https://github.com/yourusername/sillytavern-real-world-weather`
+3. Paste GitHub URL: `https://github.com/cha1latte/sillytavern-real-world-weather`
 4. Refresh the page
 
 ## Usage
