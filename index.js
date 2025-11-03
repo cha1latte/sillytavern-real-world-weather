@@ -42,18 +42,18 @@ function onAutoInjectChange(event) {
     saveSettingsDebounced();
     
     if (value && extension_settings[extensionName].lastWeather) {
-        updateAuthorNote();
-        toastr.info("Weather added to Author's Note", "Real-World Weather");
+        updateDefaultAuthorNote();
+        toastr.info("Weather added to Default Author's Note", "Real-World Weather");
     } else if (!value) {
-        clearAuthorNote();
-        toastr.info("Weather removed from Author's Note", "Real-World Weather");
+        clearDefaultAuthorNote();
+        toastr.info("Weather removed from Default Author's Note", "Real-World Weather");
     }
     
     console.log(`[${extensionName}] Auto-inject set to:`, value);
 }
 
-// Update Author's Note with weather
-function updateAuthorNote() {
+// Update Default Author's Note with weather
+function updateDefaultAuthorNote() {
     const weatherData = extension_settings[extensionName].lastWeather;
     const autoInject = extension_settings[extensionName].autoInject;
     
@@ -61,53 +61,63 @@ function updateAuthorNote() {
         return;
     }
     
+    const context = getContext();
+    
+    // Access the note_default setting (Default Author's Note content)
+    const settings = context.settings || {};
+    const currentNote = settings.note_default || "";
+    
     const weatherText = `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
     
-    // Use the correct selector
-    const authorNoteField = $("#extension_floating_default");
-    
-    if (!authorNoteField || authorNoteField.length === 0) {
-        console.error(`[${extensionName}] Could not find Author's Note field (#extension_floating_default)`);
-        toastr.warning("Could not find Author's Note field", "Real-World Weather");
-        return;
-    }
-    
-    // Get current Author's Note
-    const authorNote = authorNoteField.val() || "";
+    console.log(`[${extensionName}] Current Default Author's Note:`, currentNote);
     
     // Check if weather is already in the note
-    if (authorNote.includes("[Current Weather in")) {
+    if (currentNote.includes("[Current Weather in")) {
         // Replace existing weather
-        const newNote = authorNote.replace(/\[Current Weather in[^\]]+\]/g, weatherText);
-        authorNoteField.val(newNote);
+        const newNote = currentNote.replace(/\[Current Weather in[^\]]+\]/g, weatherText);
+        settings.note_default = newNote;
     } else {
         // Add weather to the note
-        const newNote = authorNote ? `${authorNote}\n\n${weatherText}` : weatherText;
-        authorNoteField.val(newNote);
+        const newNote = currentNote ? `${currentNote}\n\n${weatherText}` : weatherText;
+        settings.note_default = newNote;
     }
     
-    // Trigger change event to save
-    authorNoteField.trigger("input");
+    // Update the textarea if it's visible
+    const textarea = $("#extension_floating_default");
+    if (textarea.length > 0) {
+        textarea.val(settings.note_default);
+        textarea.trigger("input");
+    }
     
-    console.log(`[${extensionName}] Weather added to Author's Note:`, weatherText);
+    // Save settings
+    saveSettingsDebounced();
+    
+    console.log(`[${extensionName}] Weather added to Default Author's Note:`, weatherText);
+    console.log(`[${extensionName}] New Default Author's Note:`, settings.note_default);
 }
 
-// Clear weather from Author's Note
-function clearAuthorNote() {
-    const authorNoteField = $("#extension_floating_default");
+// Clear weather from Default Author's Note
+function clearDefaultAuthorNote() {
+    const context = getContext();
+    const settings = context.settings || {};
+    const currentNote = settings.note_default || "";
     
-    if (!authorNoteField || authorNoteField.length === 0) {
-        return;
-    }
-    
-    const authorNote = authorNoteField.val() || "";
-    
-    if (authorNote.includes("[Current Weather in")) {
+    if (currentNote.includes("[Current Weather in")) {
         // Remove weather line(s)
-        const newNote = authorNote.replace(/\[Current Weather in[^\]]+\]\n*/g, "").trim();
-        authorNoteField.val(newNote);
-        authorNoteField.trigger("input");
-        console.log(`[${extensionName}] Weather removed from Author's Note`);
+        const newNote = currentNote.replace(/\[Current Weather in[^\]]+\]\n*/g, "").trim();
+        settings.note_default = newNote;
+        
+        // Update the textarea if it's visible
+        const textarea = $("#extension_floating_default");
+        if (textarea.length > 0) {
+            textarea.val(newNote);
+            textarea.trigger("input");
+        }
+        
+        // Save settings
+        saveSettingsDebounced();
+        
+        console.log(`[${extensionName}] Weather removed from Default Author's Note`);
     }
 }
 
@@ -181,9 +191,9 @@ async function fetchWeather() {
         // Display in UI
         displayWeather(displayData);
         
-        // Update Author's Note if auto-inject is enabled
+        // Update Default Author's Note if auto-inject is enabled
         if (extension_settings[extensionName].autoInject) {
-            updateAuthorNote();
+            updateDefaultAuthorNote();
         }
         
         // Also show toast
