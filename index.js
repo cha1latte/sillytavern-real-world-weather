@@ -63,34 +63,12 @@ function updateAuthorNote() {
     
     const weatherText = `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
     
-    // Try multiple possible selectors for Author's Note
-    const possibleSelectors = [
-        "#extension_floating_prompt",
-        "#author_note_textarea",
-        "#floatingPrompt",
-        "textarea[name='extension_floating_prompt']"
-    ];
-    
-    let authorNoteField = null;
-    for (const selector of possibleSelectors) {
-        const field = $(selector);
-        if (field.length > 0) {
-            authorNoteField = field;
-            console.log(`[${extensionName}] Found Author's Note field:`, selector);
-            break;
-        }
-    }
+    // Use the correct selector
+    const authorNoteField = $("#extension_floating_default");
     
     if (!authorNoteField || authorNoteField.length === 0) {
-        console.error(`[${extensionName}] Could not find Author's Note field. Available textareas:`);
-        $("textarea").each(function() {
-            console.log(`[${extensionName}] Textarea found:`, {
-                id: $(this).attr("id"),
-                name: $(this).attr("name"),
-                placeholder: $(this).attr("placeholder")
-            });
-        });
-        toastr.warning("Could not find Author's Note field. Check console for details.", "Real-World Weather");
+        console.error(`[${extensionName}] Could not find Author's Note field (#extension_floating_default)`);
+        toastr.warning("Could not find Author's Note field", "Real-World Weather");
         return;
     }
     
@@ -116,21 +94,7 @@ function updateAuthorNote() {
 
 // Clear weather from Author's Note
 function clearAuthorNote() {
-    const possibleSelectors = [
-        "#extension_floating_prompt",
-        "#author_note_textarea",
-        "#floatingPrompt",
-        "textarea[name='extension_floating_prompt']"
-    ];
-    
-    let authorNoteField = null;
-    for (const selector of possibleSelectors) {
-        const field = $(selector);
-        if (field.length > 0) {
-            authorNoteField = field;
-            break;
-        }
-    }
+    const authorNoteField = $("#extension_floating_default");
     
     if (!authorNoteField || authorNoteField.length === 0) {
         return;
