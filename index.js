@@ -17,6 +17,43 @@ const defaultSettings = {
 // Cache duration in milliseconds (1 minute)
 const CACHE_DURATION = 60 * 1000; // 60 seconds
 
+// Weather code descriptions (WMO Weather interpretation codes)
+const WEATHER_DESCRIPTIONS = {
+    0: "Clear sky",
+    1: "Mainly clear",
+    2: "Partly cloudy",
+    3: "Overcast",
+    45: "Foggy",
+    48: "Depositing rime fog",
+    51: "Light drizzle",
+    53: "Moderate drizzle",
+    55: "Dense drizzle",
+    56: "Light freezing drizzle",
+    57: "Dense freezing drizzle",
+    61: "Slight rain",
+    63: "Moderate rain",
+    65: "Heavy rain",
+    66: "Light freezing rain",
+    67: "Heavy freezing rain",
+    71: "Slight snow fall",
+    73: "Moderate snow fall",
+    75: "Heavy snow fall",
+    77: "Snow grains",
+    80: "Slight rain showers",
+    81: "Moderate rain showers",
+    82: "Violent rain showers",
+    85: "Slight snow showers",
+    86: "Heavy snow showers",
+    95: "Thunderstorm",
+    96: "Thunderstorm with slight hail",
+    99: "Thunderstorm with heavy hail"
+};
+
+// Get weather description from code
+function getWeatherDescription(code) {
+    return WEATHER_DESCRIPTIONS[code] || "Unknown conditions";
+}
+
 // Load saved settings
 async function loadSettings() {
     extension_settings[extensionName] = extension_settings[extensionName] || {};
@@ -71,7 +108,7 @@ function updateDefaultAuthorNote() {
     const settings = context.settings || {};
     const currentNote = settings.note_default || "";
     
-    const weatherText = `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
+    const weatherText = `[Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
     
     console.log(`[${extensionName}] Current Default Author's Note:`, currentNote);
     
@@ -129,6 +166,7 @@ function displayWeather(weatherData) {
     const html = `
         <div style="background: var(--SmartThemeBlurTintColor); padding: 10px; border-radius: 5px; margin-top: 10px;">
             <div style="font-weight: bold; margin-bottom: 5px;">📍 ${weatherData.locationName}</div>
+            <div>☁️ Conditions: ${weatherData.condition}</div>
             <div>🌡️ Temperature: ${weatherData.temp}°F</div>
             <div>💧 Humidity: ${weatherData.humidity}%</div>
             <div>💨 Wind Speed: ${weatherData.windSpeed} mph</div>
@@ -207,10 +245,13 @@ async function fetchWeather() {
         const temp = weatherData.current.temperature_2m;
         const humidity = weatherData.current.relative_humidity_2m;
         const windSpeed = weatherData.current.wind_speed_10m;
+        const weatherCode = weatherData.current.weather_code;
+        const condition = getWeatherDescription(weatherCode);
         const timestamp = new Date().toLocaleString();
         
         const displayData = {
             locationName: `${name}, ${country}`,
+            condition: condition,
             temp: temp,
             humidity: humidity,
             windSpeed: windSpeed,
@@ -234,6 +275,7 @@ async function fetchWeather() {
         // Also show toast
         toastr.success(`Weather updated for ${name}, ${country}`, "Real-World Weather");
         console.log(`[${extensionName}] Weather data:`, weatherData.current);
+        console.log(`[${extensionName}] Condition: ${condition} (code: ${weatherCode})`);
         console.log(`[${extensionName}] Cache updated. Next fetch allowed in 60 seconds.`);
         
     } catch (error) {
@@ -252,7 +294,7 @@ function insertWeatherIntoChat() {
     }
     
     // Create weather context message
-    const weatherContext = `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
+    const weatherContext = `[Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
     
     // Get the chat textarea
     const textarea = $("#send_textarea");
