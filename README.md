@@ -6,7 +6,7 @@ A SillyTavern extension that fetches real-world weather data to enhance roleplay
 
 1. Open SillyTavern
 2. Extensions → Install Extension
-3. Paste GitHub URL (or manually place in `public/scripts/extensions/third-party/realworld-weather/`)
+3. Paste GitHub URL
 4. Refresh page
 
 ## Testing
