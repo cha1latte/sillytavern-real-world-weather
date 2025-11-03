@@ -11,7 +11,8 @@ const defaultSettings = {
     location: "",
     lastWeather: null,
     autoInject: false,
-    lastFetchTime: 0  // Timestamp of last successful fetch
+    lastFetchTime: 0,  // Timestamp of last successful fetch
+    useCelsius: false  // Temperature unit preference
 };
 
 // Cache duration in milliseconds (1 minute)
@@ -122,6 +123,7 @@ async function loadSettings() {
     }
     $("#weather_location").val(extension_settings[extensionName].location);
     $("#weather_auto_inject").prop("checked", extension_settings[extensionName].autoInject);
+    $("#weather_use_celsius").prop("checked", extension_settings[extensionName].useCelsius);
     
     // Display last weather if available
     if (extension_settings[extensionName].lastWeather) {
@@ -162,6 +164,23 @@ function onAutoInjectChange(event) {
     console.log(`[${extensionName}] Auto-inject set to:`, value);
 }
 
+// Handle temperature unit checkbox change
+function onUseCelsiusChange(event) {
+    const value = Boolean($(event.target).prop("checked"));
+    extension_settings[extensionName].useCelsius = value;
+    saveSettingsDebounced();
+    
+    // Refresh display if weather data exists
+    if (extension_settings[extensionName].lastWeather) {
+        displayWeather(extension_settings[extensionName].lastWeather);
+        if (extension_settings[extensionName].autoInject) {
+            updateDefaultAuthorNote();
+        }
+    }
+    
+    console.log(`[${extensionName}] Temperature unit changed to:`, value ? "Celsius" : "Fahrenheit");
+}
+
 // Update Default Author's Note with weather
 function updateDefaultAuthorNote() {
     const weatherData = extension_settings[extensionName].lastWeather;
@@ -177,7 +196,11 @@ function updateDefaultAuthorNote() {
     const settings = context.settings || {};
     const currentNote = settings.note_default || "";
     
-    const weatherText = `Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph`;
+    const useCelsius = extension_settings[extensionName].useCelsius;
+    const tempDisplay = useCelsius ? `${weatherData.tempC}°C` : `${weatherData.tempF}°F`;
+    const windDisplay = useCelsius ? `${weatherData.windSpeedKmh} km/h` : `${weatherData.windSpeedMph} mph`;
+    
+    const weatherText = `Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${tempDisplay}, ${weatherData.humidity}% humidity, wind ${windDisplay}`;
     
     console.log(`[${extensionName}] Current Default Author's Note:`, currentNote);
     
@@ -232,13 +255,17 @@ function clearDefaultAuthorNote() {
 
 // Display weather in UI
 function displayWeather(weatherData) {
+    const useCelsius = extension_settings[extensionName].useCelsius;
+    const tempDisplay = useCelsius ? `${weatherData.tempC}°C` : `${weatherData.tempF}°F`;
+    const windDisplay = useCelsius ? `${weatherData.windSpeedKmh} km/h` : `${weatherData.windSpeedMph} mph`;
+    
     const html = `
         <div style="background: var(--SmartThemeBlurTintColor); padding: 10px; border-radius: 5px; margin-top: 10px;">
             <div style="font-weight: bold; margin-bottom: 5px;">📍 ${weatherData.locationName}</div>
             <div>☁️ Conditions: ${weatherData.condition}</div>
-            <div>🌡️ Temperature: ${weatherData.temp}°F</div>
+            <div>🌡️ Temperature: ${tempDisplay}</div>
             <div>💧 Humidity: ${weatherData.humidity}%</div>
-            <div>💨 Wind Speed: ${weatherData.windSpeed} mph</div>
+            <div>💨 Wind Speed: ${windDisplay}</div>
             <div style="font-size: 0.8em; margin-top: 5px; opacity: 0.7;">Last updated: ${weatherData.timestamp}</div>
         </div>
     `;
@@ -391,15 +418,17 @@ async function fetchWeather() {
             console.log(`[${extensionName}] Coordinates:`, latitude, longitude);
         }
         
-        // Step 2: Fetch weather data
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+        // Step 2: Fetch weather data (get both units from API)
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit=celsius&wind_speed_unit=kmh`;
         const weatherResponse = await fetch(weatherUrl);
         const weatherData = await weatherResponse.json();
         
-        // Prepare display data
-        const temp = weatherData.current.temperature_2m;
+        // Prepare display data (store both units)
+        const tempC = Math.round(weatherData.current.temperature_2m);
+        const tempF = Math.round((tempC * 9/5) + 32);
         const humidity = weatherData.current.relative_humidity_2m;
-        const windSpeed = weatherData.current.wind_speed_10m;
+        const windSpeedKmh = Math.round(weatherData.current.wind_speed_10m);
+        const windSpeedMph = Math.round(windSpeedKmh * 0.621371);
         const weatherCode = weatherData.current.weather_code;
         const condition = getWeatherDescription(weatherCode);
         const timestamp = new Date().toLocaleString();
@@ -407,9 +436,11 @@ async function fetchWeather() {
         const displayData = {
             locationName: locationName,
             condition: condition,
-            temp: temp,
+            tempC: tempC,
+            tempF: tempF,
             humidity: humidity,
-            windSpeed: windSpeed,
+            windSpeedKmh: windSpeedKmh,
+            windSpeedMph: windSpeedMph,
             timestamp: timestamp,
             raw: weatherData.current
         };
@@ -448,8 +479,12 @@ function insertWeatherIntoChat() {
         return;
     }
     
+    const useCelsius = extension_settings[extensionName].useCelsius;
+    const tempDisplay = useCelsius ? `${weatherData.tempC}°C` : `${weatherData.tempF}°F`;
+    const windDisplay = useCelsius ? `${weatherData.windSpeedKmh} km/h` : `${weatherData.windSpeedMph} mph`;
+    
     // Create weather context message
-    const weatherContext = `Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph`;
+    const weatherContext = `Current Weather in ${weatherData.locationName}: ${weatherData.condition}, ${tempDisplay}, ${weatherData.humidity}% humidity, wind ${windDisplay}`;
     
     // Get the chat textarea
     const textarea = $("#send_textarea");
@@ -482,6 +517,7 @@ jQuery(async () => {
         $("#weather_fetch_button").on("click", fetchWeather);
         $("#weather_insert_button").on("click", insertWeatherIntoChat);
         $("#weather_auto_inject").on("input", onAutoInjectChange);
+        $("#weather_use_celsius").on("input", onUseCelsiusChange);
        
         // Load saved settings
         await loadSettings();
