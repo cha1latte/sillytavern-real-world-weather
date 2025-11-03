@@ -1,6 +1,7 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
+import { eventSource, event_types } from "../../../script.js";
 
 // Extension name MUST match folder name
 const extensionName = "sillytavern-real-world-weather";
@@ -64,6 +65,37 @@ function displayWeather(weatherData) {
     $("#weather_display").html(html);
 }
 
+// Get weather context string
+function getWeatherContext() {
+    const weatherData = extension_settings[extensionName].lastWeather;
+    const autoInject = extension_settings[extensionName].autoInject;
+    
+    if (!autoInject || !weatherData) {
+        return "";
+    }
+    
+    return `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph]`;
+}
+
+// Inject weather into chat context before message is sent
+function onChatChanged() {
+    const context = getContext();
+    const weatherContext = getWeatherContext();
+    
+    if (weatherContext) {
+        // Store weather in context for the AI to see
+        context.extensionPrompts = context.extensionPrompts || {};
+        context.extensionPrompts[extensionName] = weatherContext;
+        console.log(`[${extensionName}] Weather injected into context:`, weatherContext);
+    } else {
+        // Remove weather if disabled
+        if (context.extensionPrompts && context.extensionPrompts[extensionName]) {
+            delete context.extensionPrompts[extensionName];
+            console.log(`[${extensionName}] Weather removed from context`);
+        }
+    }
+}
+
 // Fetch weather data
 async function fetchWeather() {
     const location = extension_settings[extensionName].location.trim();
@@ -120,6 +152,9 @@ async function fetchWeather() {
         // Display in UI
         displayWeather(displayData);
         
+        // Trigger context update
+        onChatChanged();
+        
         // Also show toast
         toastr.success(`Weather updated for ${name}, ${country}`, "Real-World Weather");
         console.log(`[${extensionName}] Weather data:`, weatherData.current);
@@ -173,9 +208,15 @@ jQuery(async () => {
         $("#weather_fetch_button").on("click", fetchWeather);
         $("#weather_insert_button").on("click", insertWeatherIntoChat);
         $("#weather_auto_inject").on("input", onAutoInjectChange);
-       
+        
+        // Listen for chat events to inject weather
+        eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
+        
         // Load saved settings
         await loadSettings();
+        
+        // Initial context update
+        onChatChanged();
        
         console.log(`[${extensionName}] ✅ Loaded successfully`);
     } catch (error) {
