@@ -1,0 +1,11 @@
+{
+  "display_name": "Real-World Weather",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "Chai aka Ultraviolenc",
+  "version": "1.0.0",
+  "homePage": "https://github.com/cha1latte/sillytavern-real-world-weather"
+}
