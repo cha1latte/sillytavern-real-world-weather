@@ -1,7 +1,6 @@
 // Import from SillyTavern core
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { saveSettingsDebounced } from "../../../../script.js";
-import { setExtensionPrompt, MODULE_POSITION } from "../../../extensions.js";
 
 // Extension name MUST match folder name
 const extensionName = "sillytavern-real-world-weather";
@@ -27,9 +26,6 @@ async function loadSettings() {
     if (extension_settings[extensionName].lastWeather) {
         displayWeather(extension_settings[extensionName].lastWeather);
     }
-    
-    // Update context if auto-inject is enabled
-    updateWeatherContext();
 }
 
 // Handle location input change
@@ -44,30 +40,14 @@ function onAutoInjectChange(event) {
     const value = Boolean($(event.target).prop("checked"));
     extension_settings[extensionName].autoInject = value;
     saveSettingsDebounced();
-    updateWeatherContext();
     
     if (value) {
         toastr.info("Weather will now be automatically included in chat context", "Real-World Weather");
     } else {
         toastr.info("Auto-inject disabled", "Real-World Weather");
     }
-}
-
-// Update weather in extension context
-function updateWeatherContext() {
-    const weatherData = extension_settings[extensionName].lastWeather;
-    const autoInject = extension_settings[extensionName].autoInject;
     
-    if (autoInject && weatherData) {
-        const weatherPrompt = `[Current Weather in ${weatherData.locationName}: ${weatherData.temp}°F, ${weatherData.humidity}% humidity, wind ${weatherData.windSpeed} mph. Last updated: ${weatherData.timestamp}]`;
-        
-        setExtensionPrompt(extensionName, weatherPrompt, MODULE_POSITION.IN_PROMPT, 0);
-        console.log(`[${extensionName}] Weather context updated in prompt`);
-    } else {
-        // Clear the prompt if disabled
-        setExtensionPrompt(extensionName, "", MODULE_POSITION.IN_PROMPT, 0);
-        console.log(`[${extensionName}] Weather context cleared from prompt`);
-    }
+    console.log(`[${extensionName}] Auto-inject set to:`, value);
 }
 
 // Display weather in UI
@@ -139,9 +119,6 @@ async function fetchWeather() {
         
         // Display in UI
         displayWeather(displayData);
-        
-        // Update context if auto-inject is enabled
-        updateWeatherContext();
         
         // Also show toast
         toastr.success(`Weather updated for ${name}, ${country}`, "Real-World Weather");
