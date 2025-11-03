@@ -10,8 +10,12 @@ const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 const defaultSettings = {
     location: "",
     lastWeather: null,
-    autoInject: false
+    autoInject: false,
+    lastFetchTime: 0  // Timestamp of last successful fetch
 };
+
+// Cache duration in milliseconds (1 minute)
+const CACHE_DURATION = 60 * 1000; // 60 seconds
 
 // Load saved settings
 async function loadSettings() {
@@ -93,7 +97,6 @@ function updateDefaultAuthorNote() {
     saveSettingsDebounced();
     
     console.log(`[${extensionName}] Weather added to Default Author's Note:`, weatherText);
-    console.log(`[${extensionName}] New Default Author's Note:`, settings.note_default);
 }
 
 // Clear weather from Default Author's Note
@@ -135,12 +138,43 @@ function displayWeather(weatherData) {
     $("#weather_display").html(html);
 }
 
+// Check if cache is still valid
+function isCacheValid() {
+    const lastFetchTime = extension_settings[extensionName].lastFetchTime || 0;
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchTime;
+    
+    return timeSinceLastFetch < CACHE_DURATION;
+}
+
+// Get time remaining until next fetch is allowed
+function getTimeUntilNextFetch() {
+    const lastFetchTime = extension_settings[extensionName].lastFetchTime || 0;
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchTime;
+    const timeRemaining = CACHE_DURATION - timeSinceLastFetch;
+    
+    return Math.ceil(timeRemaining / 1000); // Return seconds
+}
+
 // Fetch weather data
 async function fetchWeather() {
     const location = extension_settings[extensionName].location.trim();
     
     if (!location) {
         toastr.warning("Please enter a location first", "Real-World Weather");
+        return;
+    }
+    
+    // Check cache validity
+    if (isCacheValid() && extension_settings[extensionName].lastWeather) {
+        const secondsRemaining = getTimeUntilNextFetch();
+        toastr.info(
+            `Using cached weather data. Next fetch available in ${secondsRemaining} seconds.`,
+            "Real-World Weather",
+            { timeOut: 3000 }
+        );
+        console.log(`[${extensionName}] Cache still valid. ${secondsRemaining}s until next fetch allowed.`);
         return;
     }
     
@@ -186,6 +220,7 @@ async function fetchWeather() {
         
         // Save to settings
         extension_settings[extensionName].lastWeather = displayData;
+        extension_settings[extensionName].lastFetchTime = Date.now(); // Update cache timestamp
         saveSettingsDebounced();
         
         // Display in UI
@@ -199,6 +234,7 @@ async function fetchWeather() {
         // Also show toast
         toastr.success(`Weather updated for ${name}, ${country}`, "Real-World Weather");
         console.log(`[${extensionName}] Weather data:`, weatherData.current);
+        console.log(`[${extensionName}] Cache updated. Next fetch allowed in 60 seconds.`);
         
     } catch (error) {
         console.error(`[${extensionName}] Error fetching weather:`, error);
