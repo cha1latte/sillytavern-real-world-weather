@@ -72,7 +72,16 @@ async function loadSettings() {
 // Handle location input change
 function onLocationChange(event) {
     const value = String($(event.target).val());
+    const oldLocation = extension_settings[extensionName].location;
+    
     extension_settings[extensionName].location = value;
+    
+    // If location changed significantly, clear the cache so user can fetch immediately
+    if (oldLocation && value && oldLocation.toLowerCase() !== value.toLowerCase()) {
+        extension_settings[extensionName].lastFetchTime = 0;
+        console.log(`[${extensionName}] Location changed, cache cleared`);
+    }
+    
     saveSettingsDebounced();
 }
 
